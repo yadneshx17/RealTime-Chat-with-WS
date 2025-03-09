@@ -8,18 +8,18 @@ from fastapi import (
     WebSocketException,
     Cookie,
     Query,
-    Request
     ) 
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
+
+from backend.app.core.oauth import get_current_user
 from .models import models
 from .db.db import get_async_db, engine, Base
 from .routers import auth
+import random
 
-
-# template = Jinja2Templates(directory=)
 html = """
 <!DOCTYPE html>
 <html>
@@ -36,7 +36,7 @@ html = """
         <ul id='messages'>
         </ul>
         <script>
-            var client_id = Date.now()
+            var client_id = Math.floor(Math.random() * 10000);
             document.querySelector("#ws-id").textContent = client_id;
             var ws = new WebSocket(`ws://localhost:8000/ws/${client_id}`);
             ws.onmessage = function(event) {
@@ -69,31 +69,34 @@ app = FastAPI(
 
 app.include_router(auth.router)
 
-
-# @app.get("/")
-# async def root(db: AsyncSession = Depends(get_async_db)):
-#     return {"message": " Hello"}
-
-
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: list[WebSocket] = []
+        self.active_connections: dict[int, WebSocket] = {}
 
-    async def connect(self, webscoket: WebSocket):
-        await webscoket.accept()
-        self.active_connections.append(webscoket)
+    async def connect(self, websocket: WebSocket, user_id: int):
+        await websocket.accept()
+        self.active_connections[user_id] = websocket
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    def disconnect(self, user_id: int):
+        """
+        If a client disconnects unexpectedly, self.active_connections.remove(websocket) may cause an error if the connection is already removed.
+        if websocket in self.activek_connections:
+        """
+        self.active_connections.pop(user_id, None)
+
 
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
 
     async def broadcast(self, message: str):
-        for connection in self.active_connections:
+        for connection in self.active_connections.values():
             await connection.send_text(message)
 
 manager = ConnectionManager()    
+
+# @app.get("/")
+# async def root(db: AsyncSession = Depends(get_async_db)):
+#     return {"message": " Hello"}
 
 @app.get("/")
 async def get():
@@ -126,14 +129,18 @@ async def get_cookie_or_token(
     #         await websocket.send_text(f"Query parameter q is: {q}")
     #     await websocket.send_text(f"Message text was: {data}, for item ID: {item_id}")
 
-@app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: int):
-    await manager.connect(websocket)
-    try:
+
+@app.websocket("/ws/")
+async def websocket_endpoint(websocket: WebSocket):
+    """get_async_db() returns an AsyncGenerator, so you cannot use await get_async_db()"""
+    async with get_async_db() as db:
+        user = await get_current_user(websocket, db)
+
+    await manager.connect(websocket, user.id)
+    try: 
         while True:
             data = await websocket.receive_text()
-            # await manager.send_personal_message(f"You Wrote: {data}", websocket) // return ours message back to us, we do not need this as broadcast already send the message to us and the another user.
-            await manager.broadcast(f"Client #{client_id} says: {data}")
+            await manager.broadcast(f"User #{user.id} says: {data}")
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-        await manager.broadcast(f"Client #{client_id} has left the chat")
+        manager.disconnect(user.id)
+        await manager.broadcast(f"User #{user.id} has left the chat")

@@ -1,6 +1,6 @@
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer
-from fastapi import Depends, status, HTTPException
+from fastapi import Depends, WebSocketException, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from . import config
 from .config import settings
@@ -53,7 +53,7 @@ def create_access_token(data: dict):
 
     return encoded_jwt
 
-def verify_access_token(token: str, credentials_exception):
+def verify_access_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, [ALGORITHM])
 
@@ -66,10 +66,18 @@ def verify_access_token(token: str, credentials_exception):
     
     return token_data
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_async_db)):
-    credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
-
-    token = verify_access_token(token, credentials_exception)
-    user = await db.query(models.User).filter(models.User.id == token.id).first() # query to database to grab the user
+async def get_current_user(websocket, db: AsyncSession):
+    token = websocket.query_params.get("token") # Read the token from the query params
+    if not token: 
+        auth_header = websocket.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+        else:
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Missing Authentication Token")
+        
+    token_data = verify_access_token(token) # Verify the token
+    user = await db.get(models.User, token_data["id"])
+    if not user:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="User not found")
 
     return user
