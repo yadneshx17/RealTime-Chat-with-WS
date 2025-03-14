@@ -134,6 +134,7 @@ async def get_cookie_or_token(
 async def websocket_endpoint(websocket: WebSocket):
     """get_async_db() returns an AsyncGenerator, so you cannot use await get_async_db()"""
     async with get_async_db() as db:
+        # "verifying the user"
         user = await get_current_user(websocket, db)
 
     await manager.connect(websocket, user.id)
