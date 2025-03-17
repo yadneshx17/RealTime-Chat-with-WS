@@ -1,3 +1,4 @@
+import json
 from typing import Annotated
 from fastapi import (
     FastAPI, 
@@ -8,6 +9,8 @@ from fastapi import (
     WebSocketException,
     Cookie,
     Query,
+    Header,
+    Body
     ) 
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -17,7 +20,7 @@ from contextlib import asynccontextmanager
 from backend.app.core.oauth import get_current_user
 from .models import models
 from .db.db import get_async_db, engine, Base
-from .routers import auth
+from .routes import auth
 import random
 
 html = """
@@ -71,25 +74,29 @@ app.include_router(auth.router)
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: dict[int, WebSocket] = {}
+        self.active_connections: list[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket, user_id: int):
+    # async def connect(self, websocket: WebSocket, user_id: int):
+    #     await websocket.accept()
+    #     self.active_connections[user_id] = websocket
+    
+    async def connect(self, websocket: WebSocket):
         await websocket.accept()
-        self.active_connections[user_id] = websocket
+        self.active_connections.append(websocket)
 
-    def disconnect(self, user_id: int):
+    def disconnect(self, websocket): # user_id: int
         """
         If a client disconnects unexpectedly, self.active_connections.remove(websocket) may cause an error if the connection is already removed.
         if websocket in self.activek_connections:
         """
-        self.active_connections.pop(user_id, None)
-
+        # self.active_connections.pop(user_id, None)
+        self.active_connections.remove(websocket)
 
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
 
     async def broadcast(self, message: str):
-        for connection in self.active_connections.values():
+        for connection in self.active_connections: # .values()
             await connection.send_text(message)
 
 manager = ConnectionManager()    
@@ -130,17 +137,41 @@ async def get_cookie_or_token(
     #     await websocket.send_text(f"Message text was: {data}, for item ID: {item_id}")
 
 
-@app.websocket("/ws/")
-async def websocket_endpoint(websocket: WebSocket):
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: int):
     """get_async_db() returns an AsyncGenerator, so you cannot use await get_async_db()"""
-    async with get_async_db() as db:
-        user = await get_current_user(websocket, db)
+    # async with get_async_db() as db:
+    #     user = await get_current_user(websocket, db)
 
-    await manager.connect(websocket, user.id)
+    # await manager.connect(websocket, user.id)
+    await manager.connect(websocket)
     try: 
         while True:
             data = await websocket.receive_text()
-            await manager.broadcast(f"User #{user.id} says: {data}")
+            # await manager.broadcast(f"User #{user.id} says: {data}")
+            await manager.broadcast(f"Use says: {data}")
     except WebSocketDisconnect:
-        manager.disconnect(user.id)
-        await manager.broadcast(f"User #{user.id} has left the chat")
+        manager.disconnect(websocket)
+        # await manager.broadcast(f"User #{user.id} has left the chat")
+        await manager.broadcast(f"User #{client_id} has left the chat")
+
+
+@app.get("/items")
+async def read_items(
+    cookie_id: str | None = Cookie(None),
+    accept_encoding: str | None = Header(None)
+):
+    return {"cookie": cookie_id, "accept_encoding": accept_encoding}
+
+@app.post("/createposts")
+def create_posts(payload: dict = Body()): #  designed to extract data from the body of a POST request in a FastAPI application.
+    """ Body of the Request
+    {
+        "title": "Top Cities,,
+        "content": "Delhi"
+    }
+    """
+
+    print(payload)
+
+    return {"new_post": f"title {payload['title']} ',' content:{payload['content']}"} # send it back to the user

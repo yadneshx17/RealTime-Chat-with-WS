@@ -5,7 +5,7 @@ from ..core.config import settings
 
 DATABASE_URL = settings.database_url
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL) # echo=True : logs of table creationg in terminal
 async_session = async_sessionmaker(bind=engine, expire_on_commit=False, class_=AsyncSession) 
 
 class Base(DeclarativeBase):

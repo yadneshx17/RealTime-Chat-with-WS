@@ -59,10 +59,10 @@ def verify_access_token(token: str):
 
         id: str = payload.get("user_id")
         if id is None:
-            raise credentials_exception
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="")
         token_data = schemas.TokenData(id=str(id))
     except JWTError:
-        raise credentials_exception
+        raise WebSocketException
     
     return token_data
 
