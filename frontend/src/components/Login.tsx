@@ -1,19 +1,14 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Button,
-  TextField,
-  Typography,
-  Container,
-  Paper,
-  Link,
-} from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../utils/api';
+import { authAPI } from '../services/api';
 import { LoginCredentials } from '../types';
+import './Auth.css';
 
-const Login: React.FC = () => {
-  const navigate = useNavigate();
+interface LoginProps {
+  onLoginSuccess: () => void;
+  onSwitchToRegister: () => void;
+}
+
+const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToRegister }) => {
   const [credentials, setCredentials] = useState<LoginCredentials>({
     username: '',
     password: '',
@@ -25,86 +20,48 @@ const Login: React.FC = () => {
     try {
       const response = await authAPI.login(credentials);
       localStorage.setItem('token', response.access_token);
-      navigate('/chat');
+      onLoginSuccess();
     } catch (err) {
       setError('Invalid credentials');
     }
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Paper
-          elevation={3}
-          sx={{
-            padding: 4,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            width: '100%',
-          }}
-        >
-          <Typography component="h1" variant="h5">
-            Sign in
-          </Typography>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
+    <div className="auth-container">
+      <div className="auth-box">
+        <h2>Login</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="username">Email</label>
+            <input
+              type="email"
               id="username"
-              label="Email Address"
-              name="username"
-              autoComplete="email"
-              autoFocus
               value={credentials.username}
-              onChange={(e) =>
-                setCredentials({ ...credentials, username: e.target.value })
-              }
-            />
-            <TextField
-              margin="normal"
+              onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
               required
-              fullWidth
-              name="password"
-              label="Password"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
               type="password"
               id="password"
-              autoComplete="current-password"
               value={credentials.password}
-              onChange={(e) =>
-                setCredentials({ ...credentials, password: e.target.value })
-              }
+              onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+              required
             />
-            {error && (
-              <Typography color="error" sx={{ mt: 1 }}>
-                {error}
-              </Typography>
-            )}
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-            >
-              Sign In
-            </Button>
-            <Box sx={{ textAlign: 'center' }}>
-              <Link href="/register" variant="body2">
-                {"Don't have an account? Sign Up"}
-              </Link>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+          </div>
+          {error && <div className="error-message">{error}</div>}
+          <button type="submit">Login</button>
+        </form>
+        <p className="switch-form">
+          Don't have an account?{' '}
+          <button onClick={onSwitchToRegister} className="link-button">
+            Sign up
+          </button>
+        </p>
+      </div>
+    </div>
   );
 };
 

@@ -1,15 +1,14 @@
 export interface User {
   id: number;
-  full_name: string;
   username: string;
   email: string;
+  full_name: string;
 }
 
 export interface Message {
-  id: number;
   content: string;
-  sender_id: number;
-  created_at: string;
+  sender: string;
+  timestamp: string;
 }
 
 export interface AuthResponse {

@@ -1,19 +1,14 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Button,
-  TextField,
-  Typography,
-  Container,
-  Paper,
-  Link,
-} from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../utils/api';
+import { authAPI } from '../services/api';
 import { RegisterData } from '../types';
+import './Auth.css';
 
-const Register: React.FC = () => {
-  const navigate = useNavigate();
+interface RegisterProps {
+  onRegisterSuccess: () => void;
+  onSwitchToLogin: () => void;
+}
+
+const Register: React.FC<RegisterProps> = ({ onRegisterSuccess, onSwitchToLogin }) => {
   const [formData, setFormData] = useState<RegisterData>({
     full_name: '',
     username: '',
@@ -26,112 +21,68 @@ const Register: React.FC = () => {
     e.preventDefault();
     try {
       await authAPI.register(formData);
-      navigate('/login');
+      onRegisterSuccess();
     } catch (err) {
       setError('Registration failed. Please try again.');
     }
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Paper
-          elevation={3}
-          sx={{
-            padding: 4,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            width: '100%',
-          }}
-        >
-          <Typography component="h1" variant="h5">
-            Sign up
-          </Typography>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
+    <div className="auth-container">
+      <div className="auth-box">
+        <h2>Sign Up</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="full_name">Full Name</label>
+            <input
+              type="text"
               id="full_name"
-              label="Full Name"
-              name="full_name"
-              autoComplete="name"
-              autoFocus
               value={formData.full_name}
-              onChange={(e) =>
-                setFormData({ ...formData, full_name: e.target.value })
-              }
-            />
-            <TextField
-              margin="normal"
+              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
               required
-              fullWidth
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="username">Username</label>
+            <input
+              type="text"
               id="username"
-              label="Username"
-              name="username"
-              autoComplete="username"
               value={formData.username}
-              onChange={(e) =>
-                setFormData({ ...formData, username: e.target.value })
-              }
-            />
-            <TextField
-              margin="normal"
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               required
-              fullWidth
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              type="email"
               id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
               value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-            />
-            <TextField
-              margin="normal"
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
-              fullWidth
-              name="password"
-              label="Password"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
               type="password"
               id="password"
-              autoComplete="new-password"
               value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
             />
-            {error && (
-              <Typography color="error" sx={{ mt: 1 }}>
-                {error}
-              </Typography>
-            )}
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-            >
-              Sign Up
-            </Button>
-            <Box sx={{ textAlign: 'center' }}>
-              <Link href="/login" variant="body2">
-                {'Already have an account? Sign In'}
-              </Link>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+          </div>
+          {error && <div className="error-message">{error}</div>}
+          <button type="submit">Sign Up</button>
+        </form>
+        <p className="switch-form">
+          Already have an account?{' '}
+          <button onClick={onSwitchToLogin} className="link-button">
+            Login
+          </button>
+        </p>
+      </div>
+    </div>
   );
 };
 
